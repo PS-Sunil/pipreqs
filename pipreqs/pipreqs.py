@@ -26,6 +26,8 @@ Options:
     --print               Output the list of requirements in the standard
                           output
     --force               Overwrite existing requirements.txt
+    --filter <file>       Overrides the generated requirements.txt file with the
+                          given file.
     --diff <file>         Compare modules in requirements.txt to project
                           imports
     --clean <file>        Clean up requirements.txt by removing modules
@@ -47,6 +49,7 @@ from docopt import docopt
 import requests
 from yarg import json2package
 from yarg.exceptions import HTTPError
+import pip
 
 from pipreqs import __version__
 
@@ -430,6 +433,36 @@ def dynamic_versioning(scheme, imports):
         symbol = "~="
     return imports, symbol
 
+def load_required_version(file_path, imports):
+    """ 
+    (function) def load_required_version(
+        file_path: path to load file,
+        imports: import dictionary
+    ) -> tuple[bool, updated/same dictionary]
+
+    """
+    status  = False
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                parts = line.strip().split('==')
+                if len(parts) == 2:
+                    name = parts[0]
+                    version = parts[1]
+                    for dictionary in imports:
+                        if dictionary.get('name') != "pip" and dictionary.get('name') == name:
+                            dictionary['version'] = version
+                else:
+                    logging.warning("Please metioned the required version in the file " + file_path)
+                    raise Exception
+        status = True
+    except Exception:
+        logging.error("Failed to filter the file " + file_path)
+    return status, imports
+
+def remove_pip(imports):
+    return [pkg for pkg in imports if pkg.get('name') != "pip"]
 
 def init(args):
     encoding = args.get('--encoding')
@@ -442,6 +475,11 @@ def init(args):
     if extra_ignore_dirs:
         extra_ignore_dirs = extra_ignore_dirs.split(',')
 
+    if args["--filter"]:
+        if not os.path.isfile(args["--filter"]):
+            logging.warning("The " + args["--filter"] + " file doesn't exist. Please provide the valid path")
+            return
+    
     path = (args["--savepath"] if args["--savepath"] else
             os.path.join(input_path, "requirements.txt"))
     if (not args["--print"]
@@ -511,6 +549,12 @@ def init(args):
     else:
         symbol = "=="
 
+    if args["--filter"]:
+        status, imports = load_required_version(args["--filter"], imports)
+        if not status:
+            return
+        imports = remove_pip(imports)
+    
     if args["--print"]:
         output_requirements(imports, symbol)
         logging.info("Successfully output requirements")

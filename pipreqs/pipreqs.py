@@ -433,7 +433,7 @@ def dynamic_versioning(scheme, imports):
         symbol = "~="
     return imports, symbol
 
-def load_required_version(file_path, imports):
+def load_required_version(file_path, imports, symbol):
     """ 
     (function) def load_required_version(
         file_path: path to load file,
@@ -452,7 +452,10 @@ def load_required_version(file_path, imports):
                     version = parts[1]
                     for dictionary in imports:
                         if dictionary.get('name') != "pip" and dictionary.get('name') == name:
-                            dictionary['version'] = version
+                            if symbol == "":
+                                dictionary['version'] = "==" + version
+                            else:
+                                dictionary['version'] = version
                 else:
                     logging.warning("Please metioned the required version in the file " + file_path)
                     raise Exception
@@ -550,7 +553,7 @@ def init(args):
         symbol = "=="
 
     if args["--filter"]:
-        status, imports = load_required_version(args["--filter"], imports)
+        status, imports = load_required_version(args["--filter"], imports, symbol)
         if not status:
             return
         imports = remove_pip(imports)

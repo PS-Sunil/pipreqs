@@ -445,6 +445,7 @@ def load_required_version(file_path, imports, symbol):
     try:
         with open(file_path, 'r') as file:
             lines = file.readlines()
+            lines = [line for line in lines if line.strip() and not line.strip().startswith("#")]
             temp_imports = []
             for line in lines:
                 parts = line.strip().split('==')

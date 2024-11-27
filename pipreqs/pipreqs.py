@@ -433,7 +433,7 @@ def dynamic_versioning(scheme, imports):
         symbol = "~="
     return imports, symbol
 
-def load_required_version(file_path, imports):
+def load_required_version(file_path, imports, symbol):
     """ 
     (function) def load_required_version(
         file_path: path to load file,
@@ -445,6 +445,7 @@ def load_required_version(file_path, imports):
     try:
         with open(file_path, 'r') as file:
             lines = file.readlines()
+            temp_imports = []
             for line in lines:
                 parts = line.strip().split('==')
                 if len(parts) == 2:
@@ -452,10 +453,19 @@ def load_required_version(file_path, imports):
                     version = parts[1]
                     for dictionary in imports:
                         if dictionary.get('name') != "pip" and dictionary.get('name') == name:
-                            dictionary['version'] = version
+                            if symbol == "":
+                                dictionary['version'] = "==" + version
+                            else:
+                                dictionary['version'] = version
+                        elif dictionary.get('name') != "pip" and dictionary.get('name') != name and (not any(temp['name'] == name for temp in temp_imports)):
+                            temp_dict = {}
+                            temp_dict['name'] = name
+                            temp_dict['version'] = "==" + version
+                            temp_imports.append(temp_dict)
                 else:
                     logging.warning("Please metioned the required version in the file " + file_path)
                     raise Exception
+        imports = imports + temp_imports
         status = True
     except Exception:
         logging.error("Failed to filter the file " + file_path)
@@ -550,7 +560,7 @@ def init(args):
         symbol = "=="
 
     if args["--filter"]:
-        status, imports = load_required_version(args["--filter"], imports)
+        status, imports = load_required_version(args["--filter"], imports, symbol)
         if not status:
             return
         imports = remove_pip(imports)
